@@ -392,8 +392,8 @@
           }
         });
       });
-      // The MIAW client fires onEmbeddedMessagingReady once the chat button is rendered;
-      // utilAPI.launchChat() only works after that, so early clicks are queued until then.
+      // utilAPI.launchChat() only works once the MIAW client has rendered its chat button
+      // (onEmbeddedMessagingButtonCreated), so earlier clicks are queued until then.
       var chatReady = false;
       var launchPending = false;
       function launchChat() {
@@ -402,23 +402,51 @@
           showToast('Could not open the chat. Check the browser console.');
         });
       }
-      // The Developer Edition chat site sometimes stalls while loading (measured: script or chat frame hanging
-      // 40 s+, while a reload a moment later loads in ~2 s). Instead of "Starting the chat..." forever,
-      // offer a reload once the widget is clearly late.
-      var READY_TIMEOUT_MS = 15000;
+      // The Developer Edition chat site often stalls on the first load after it has been idle (measured in Edge
+      // and Chrome: the chat frame is created but never becomes ready), while the next load is ready in ~2-4 s.
+      // So the first stall reloads the page once automatically, carrying over a pending "open chat" click;
+      // a second stall shows the notice with a manual Reload button.
+      var READY_TIMEOUT_MS = 12000;
+      var AUTO_RELOAD_KEY = 'homeAdvisorChatAutoReloaded';
+      var LAUNCH_AFTER_RELOAD_KEY = 'homeAdvisorLaunchAfterReload';
+      function readFlag(key) { try { return sessionStorage.getItem(key) === '1'; } catch (e) { return false; } }
+      function writeFlag(key, on) {
+        try { if (on) { sessionStorage.setItem(key, '1'); } else { sessionStorage.removeItem(key); } } catch (e) { /* storage blocked */ }
+      }
+
       var slowBanner = document.getElementById('chatSlowBanner');
+      if (readFlag(LAUNCH_AFTER_RELOAD_KEY)) {
+        writeFlag(LAUNCH_AFTER_RELOAD_KEY, false);
+        launchPending = true;
+        showToast('Starting the chat...');
+      }
       var slowTimer = setTimeout(function () {
-        if (!chatReady) { slowBanner.classList.add('show'); }
+        if (chatReady) { return; }
+        if (!readFlag(AUTO_RELOAD_KEY)) {
+          writeFlag(AUTO_RELOAD_KEY, true);
+          writeFlag(LAUNCH_AFTER_RELOAD_KEY, launchPending);
+          location.reload();
+          return;
+        }
+        slowBanner.classList.add('show');
       }, READY_TIMEOUT_MS);
-      document.getElementById('chatSlowReload').addEventListener('click', function () { location.reload(); });
+      document.getElementById('chatSlowReload').addEventListener('click', function () {
+        writeFlag(LAUNCH_AFTER_RELOAD_KEY, launchPending);
+        location.reload();
+      });
       document.getElementById('chatSlowDismiss').addEventListener('click', function () {
         slowBanner.classList.remove('show');
       });
 
       window.addEventListener('onEmbeddedMessagingReady', function () {
-        chatReady = true;
         clearTimeout(slowTimer);
+        writeFlag(AUTO_RELOAD_KEY, false);
         slowBanner.classList.remove('show');
+      });
+      // launchChat() rejects between Ready and ButtonCreated (seen live: "Could not open the chat"),
+      // so queued clicks are released only once the button exists.
+      window.addEventListener('onEmbeddedMessagingButtonCreated', function () {
+        chatReady = true;
         if (launchPending) {
           launchPending = false;
           launchChat();
