@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aura Home Decor</title>
+  <meta name="description" content="Aura Home Decor storefront demo with the Agentforce Home Advisor web chat.">
+  <style>
+    :root {
+      --bg: #faf7f2;
+      --surface: #ffffff;
+      --ink: #1f1b16;
+      --muted: #6b6259;
+      --line: #e8e1d6;
+      --accent: #8a5a2b;
+      --accent-ink: #ffffff;
+      --accent-soft: #f3e9dc;
+      --oak: #c89b6a;
+      --velvet: #2f5d50;
+      --brass: #c9a24a;
+      --radius: 16px;
+      --shadow: 0 10px 30px rgba(31, 27, 22, 0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #16130f;
+        --surface: #1f1b16;
+        --ink: #f4efe8;
+        --muted: #b3a99d;
+        --line: #332c24;
+        --accent: #d39a5c;
+        --accent-ink: #16130f;
+        --accent-soft: #2a231b;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #16130f;
+      --surface: #1f1b16;
+      --ink: #f4efe8;
+      --muted: #b3a99d;
+      --line: #332c24;
+      --accent: #d39a5c;
+      --accent-ink: #16130f;
+      --accent-soft: #2a231b;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+
+    .banner {
+      display: none;
+      background: #b3261e;
+      color: #fff;
+      text-align: center;
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+    .banner code { background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; }
+
+    header.site {
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: 0.04em; text-decoration: none; }
+    .brand-mark {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--brass), var(--accent));
+      box-shadow: inset 0 0 0 3px var(--bg);
+    }
+    .nav-links { display: flex; gap: 24px; font-size: 15px; color: var(--muted); }
+    .nav-links a { text-decoration: none; padding: 6px 2px; border-bottom: 2px solid transparent; }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-links a.active { color: var(--ink); border-bottom-color: var(--accent); }
+    .card[hidden] { display: none; }
+    .cta-short { display: none; }
+    #featured, #advisor { scroll-margin-top: 88px; }
+    .empty-filter { color: var(--muted); padding: 24px 0; }
+
+    .session-banner {
+      position: fixed; left: 16px; bottom: 16px; z-index: 2147483000;
+      width: min(360px, calc(100vw - 32px));
+      background: var(--surface); color: var(--ink);
+      border: 1px solid var(--line); border-left: 4px solid var(--accent);
+      border-radius: 14px; box-shadow: var(--shadow); padding: 16px 18px;
+      display: none;
+    }
+    .session-banner.show { display: block; }
+    .session-banner h4 { margin: 0 0 4px; font-size: 16px; }
+    .session-banner p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    .session-banner .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .session-banner .btn { padding: 9px 16px; font-size: 14px; }
+    @media (max-width: 600px) {
+      .session-banner { top: 76px; bottom: auto; }
+    }
+
+    /* Covers the chat composer while the agent connects. Fixed light colors on purpose: it sits on the
+       Salesforce chat window, which keeps its own branding and ignores the page's dark mode. */
+    .chat-connecting {
+      position: fixed; z-index: 2147483001; display: none;
+      align-items: center; justify-content: center; gap: 10px;
+      background: #ffffff; color: #5c5650; font-size: 14px;
+      border-top: 1px solid #ece7e0; border-radius: 0 0 16px 16px;
+    }
+    .chat-connecting.show { display: flex; }
+    .chat-connecting:focus { outline: none; }
+    .chat-connecting .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #e6dccf; border-top-color: #8a5a2b;
+      animation: chat-spin .8s linear infinite;
+    }
+    @keyframes chat-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .chat-connecting .spinner { animation: none; }
+    }
+
+    .hero { padding: 72px 0 56px; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
+    .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 12px; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; font-size: clamp(36px, 5vw, 58px); line-height: 1.08; margin: 12px 0 18px; }
+    .lede { color: var(--muted); font-size: 18px; max-width: 520px; margin: 0 0 28px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 22px; border-radius: 999px; border: 1px solid var(--line);
+      background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .btn:hover { transform: translateY(-1px); }
+    .hero-art {
+      aspect-ratio: 4 / 3.4; border-radius: 28px; position: relative; overflow: hidden;
+      background: linear-gradient(160deg, var(--accent-soft), var(--surface));
+      border: 1px solid var(--line); box-shadow: var(--shadow);
+    }
+    .hero-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 8px 0 56px; }
+    .trust div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+    .trust strong { display: block; font-size: 15px; }
+    .trust span { color: var(--muted); font-size: 14px; }
+
+    section h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; font-size: 32px; margin: 0 0 6px; }
+    .section-sub { color: var(--muted); margin: 0 0 28px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+    .card-art { aspect-ratio: 4 / 3; position: relative; }
+    .card-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .card-body h3 { margin: 0; font-size: 18px; }
+    .sku { font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--muted); }
+    .specs { color: var(--muted); font-size: 14px; margin: 4px 0 10px; }
+    .price-row { margin-top: auto; display: flex; align-items: center; justify-content: space-between; }
+    .price { font-weight: 700; font-size: 20px; }
+    .ask { font-size: 14px; padding: 9px 14px; }
+
+    .advisor { margin: 72px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 36px; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 36px; box-shadow: var(--shadow); }
+    .advisor p { color: var(--muted); }
+    .prompts { display: grid; gap: 10px; }
+    .prompt {
+      text-align: left; width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; display: flex; justify-content: space-between; gap: 12px;
+    }
+    .prompt small { color: var(--muted); white-space: nowrap; }
+    .prompt:hover { border-color: var(--accent); }
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
+      background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px;
+      transition: all .2s ease; pointer-events: none; z-index: 50;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    footer { border-top: 1px solid var(--line); padding: 28px 0 96px; color: var(--muted); font-size: 14px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .hero, .advisor { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      /* Keep category filters reachable on small screens: a swipeable row under the logo. */
+      .nav { flex-wrap: wrap; height: auto; padding: 10px 16px; row-gap: 6px; }
+      .nav-links { order: 3; width: 100%; overflow-x: auto; gap: 18px; white-space: nowrap; scrollbar-width: none; }
+      .nav-links::-webkit-scrollbar { display: none; }
+    }
+    @media (max-width: 600px) {
+      .cta-long { display: none; }
+      .cta-short { display: inline; }
+      .header-cta { padding: 9px 16px; font-size: 14px; }
+      .brand { font-size: 14px; }
+      .nav-links { padding: 0 4px; }
+      .grid, .trust { grid-template-columns: 1fr; }
+      .hero { padding-top: 40px; }
+      .advisor { padding: 22px; }
+      .prompt { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner" id="fileBanner">
+    Web chat cannot start from a file:// page. Run <code>demo/serve.ps1</code> and open <code>http://localhost:8080</code>.
+  </div>
+
+  <header class="site">
+    <div class="wrap nav">
+      <a class="brand" href="#"><span class="brand-mark" aria-hidden="true"></span>AURA HOME DECOR</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#all" data-filter="all" class="active" aria-current="true">All</a>
+        <a href="#living" data-filter="living">Living</a>
+        <a href="#dining" data-filter="dining">Dining</a>
+        <a href="#lighting" data-filter="lighting">Lighting</a>
+        <a href="#advisor">Home Advisor</a>
+      </nav>
+      <button class="btn primary header-cta" type="button" data-launch-chat><span class="cta-long">Chat with an advisor</span><span class="cta-short">Chat</span></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <section class="hero">
+        <div>
+          <div class="eyebrow">Autumn Collection</div>
+          <h1>Warm materials, timeless shapes, made for real life.</h1>
+          <p class="lede">Solid oak, performance velvet and brushed brass, chosen to last. Ask our Home Advisor about sizes, care and your delivery, any time of day.</p>
+          <div class="cta-row">
+            <a class="btn primary" href="#featured">Shop the collection</a>
+            <button class="btn" type="button" data-launch-chat>Ask the Home Advisor</button>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 400 340" preserveAspectRatio="xMidYMid slice">
+            <rect x="0" y="250" width="400" height="90" fill="var(--line)" opacity=".55"/>
+            <circle cx="320" cy="80" r="46" fill="var(--brass)" opacity=".18"/>
+            <rect x="40" y="150" width="210" height="70" rx="22" fill="var(--velvet)"/>
+            <rect x="30" y="130" width="40" height="95" rx="18" fill="var(--velvet)" opacity=".92"/>
+            <rect x="220" y="130" width="40" height="95" rx="18" fill="var(--velvet)" opacity=".92"/>
+            <rect x="60" y="120" width="170" height="50" rx="18" fill="var(--velvet)" opacity=".8"/>
+            <rect x="48" y="220" width="8" height="28" fill="var(--oak)"/>
+            <rect x="234" y="220" width="8" height="28" fill="var(--oak)"/>
+            <line x1="320" y1="70" x2="320" y2="248" stroke="var(--brass)" stroke-width="5"/>
+            <path d="M290 70 h60 l-12 -34 h-36 z" fill="var(--brass)"/>
+            <ellipse cx="320" cy="250" rx="26" ry="6" fill="var(--brass)"/>
+          </svg>
+        </div>
+      </section>
+
+      <div class="trust">
+        <div><strong>White-glove delivery</strong><span>Tracked freight to your room of choice.</span></div>
+        <div><strong>Answers in seconds</strong><span>The Home Advisor knows every product spec.</span></div>
+        <div><strong>Real people, too</strong><span>Ask for a person and we connect you.</span></div>
+      </div>
+
+      <section id="featured">
+        <h2 id="featuredTitle">Featured pieces</h2>
+        <p class="section-sub">Ask the Home Advisor for dimensions, materials or care instructions on any item.</p>
+        <div class="grid" id="productGrid">
+          <article class="card" data-category="dining">
+            <div class="card-art" aria-hidden="true">
+              <svg viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="240" fill="var(--accent-soft)"/>
+                <rect x="40" y="96" width="240" height="18" rx="6" fill="var(--oak)"/>
+                <path d="M62 114 l-12 76 h10 l16 -76 z M258 114 l12 76 h-10 l-16 -76 z" fill="var(--oak)" opacity=".85"/>
+                <rect x="40" y="190" width="240" height="4" fill="var(--line)"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3>Mid-Century Oak Dining Table</h3>
+              <div class="sku">SKU HF-DIN-OAK-7236</div>
+              <div class="specs">Solid white oak, seats six</div>
+              <div class="price-row"><span class="price">$1,299</span><button class="btn ask" type="button" data-copy="What are the dimensions of SKU HF-DIN-OAK-7236?">Ask about size</button></div>
+            </div>
+          </article>
+          <article class="card" data-category="living">
+            <div class="card-art" aria-hidden="true">
+              <svg viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="240" fill="var(--accent-soft)"/>
+                <rect x="50" y="110" width="220" height="56" rx="18" fill="var(--velvet)"/>
+                <rect x="40" y="92" width="38" height="80" rx="16" fill="var(--velvet)" opacity=".9"/>
+                <rect x="242" y="92" width="38" height="80" rx="16" fill="var(--velvet)" opacity=".9"/>
+                <rect x="70" y="84" width="180" height="40" rx="16" fill="var(--velvet)" opacity=".75"/>
+                <g fill="var(--bg)" opacity=".45"><circle cx="110" cy="102" r="3"/><circle cx="160" cy="102" r="3"/><circle cx="210" cy="102" r="3"/></g>
+                <rect x="58" y="166" width="7" height="20" fill="var(--oak)"/><rect x="255" y="166" width="7" height="20" fill="var(--oak)"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3>Velvet Chesterfield Sofa</h3>
+              <div class="sku">SKU HF-SOF-VEL-8434</div>
+              <div class="specs">Emerald performance velvet, hardwood frame</div>
+              <div class="price-row"><span class="price">$2,499</span><button class="btn ask" type="button" data-copy="How do I clean the velvet chesterfield sofa?">Ask about care</button></div>
+            </div>
+          </article>
+          <article class="card" data-category="lighting">
+            <div class="card-art" aria-hidden="true">
+              <svg viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="240" fill="var(--accent-soft)"/>
+                <path d="M120 60 q60 -40 110 10" stroke="var(--brass)" stroke-width="6" fill="none"/>
+                <line x1="120" y1="60" x2="120" y2="196" stroke="var(--brass)" stroke-width="6"/>
+                <path d="M205 66 h50 l-8 32 h-34 z" fill="var(--brass)" opacity=".85"/>
+                <ellipse cx="120" cy="198" rx="30" ry="8" fill="var(--line)"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3>Modern Brass Floor Lamp</h3>
+              <div class="sku">SKU HF-LGT-BRS-6512</div>
+              <div class="specs">Brushed brass, marble base, dimmable</div>
+              <div class="price-row"><span class="price">$349</span><button class="btn ask" type="button" data-copy="What material is the Modern Brass Floor Lamp made of?">Ask about materials</button></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="advisor" id="advisor">
+        <div>
+          <div class="eyebrow">Live demo</div>
+          <h2>Try the Home Advisor</h2>
+          <p>Open the chat bubble in the corner, then paste one of these. Click a prompt to copy it.</p>
+          <p>Order status needs both the order number and the billing email, so the advisor never reveals someone else's order.</p>
+        </div>
+        <div class="prompts">
+          <button class="prompt" type="button" data-copy="What are the dimensions of SKU HF-DIN-OAK-7236?">What are the dimensions of SKU HF-DIN-OAK-7236?<small>Product</small></button>
+          <button class="prompt" type="button" data-copy="How do I clean the velvet chesterfield sofa?">How do I clean the velvet chesterfield sofa?<small>Care</small></button>
+          <button class="prompt" type="button" data-copy="Where is my order 00000100? My email is jane.doe@example.com">Where is my order 00000100? My email is jane.doe@example.com<small>Order</small></button>
+          <button class="prompt" type="button" data-copy="Can you check the status of order 00000100?">Can you check the status of order 00000100?<small>Asks for email</small></button>
+          <button class="prompt" type="button" data-copy="This isn't helping, I want to talk to a real person.">This isn't helping, I want to talk to a real person.<small>Escalation</small></button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Aura Home Decor is a fictional retailer for an Agentforce demo.</span>
+      <span>Powered by Agentforce Home Advisor</span>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="chat-connecting" id="chatConnecting" role="status" aria-live="polite" tabindex="-1">
+    <span class="spinner" aria-hidden="true"></span>
+    <span>Connecting you to the Home Advisor...</span>
+  </div>
+
+  <div class="session-banner" id="sessionBanner" role="alert" aria-live="assertive">
+    <h4 id="sessionBannerTitle">Your chat session has ended</h4>
+    <p id="sessionBannerText">Start a new session any time and the Home Advisor will be right with you.</p>
+    <div class="row">
+      <button class="btn primary" type="button" id="startNewSession">Start New Session</button>
+      <button class="btn" type="button" id="dismissSession">Dismiss</button>
+    </div>
+  </div>
+
+  <script>
+    // Demo helpers: copy prompts, open the chat from page buttons, warn when opened from disk.
+    (function () {
+      if (location.protocol === 'file:') {
+        document.getElementById('fileBanner').style.display = 'block';
+      }
+      var toast = document.getElementById('toast');
+      var hideTimer;
+      function showToast(text) {
+        toast.textContent = text;
+        toast.classList.add('show');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+      }
+      document.querySelectorAll('[data-copy]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var text = el.getAttribute('data-copy');
+          var done = function () { showToast('Copied. Paste it into the chat.'); };
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, function () { showToast(text); });
+          } else {
+            showToast(text);
+          }
+        });
+      });
+      // The MIAW client fires onEmbeddedMessagingReady once the chat button is rendered;
+      // utilAPI.launchChat() only works after that, so early clicks are queued until then.
+      var chatReady = false;
+      var launchPending = false;
+      function launchChat() {
+        embeddedservice_bootstrap.utilAPI.launchChat().catch(function (err) {
+          console.error('launchChat failed', err);
+          showToast('Could not open the chat. Check the browser console.');
+        });
+      }
+      window.addEventListener('onEmbeddedMessagingReady', function () {
+        chatReady = true;
+        if (launchPending) {
+          launchPending = false;
+          launchChat();
+        }
+      });
+      document.querySelectorAll('[data-launch-chat]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          if (chatReady) {
+            launchChat();
+            return;
+          }
+          launchPending = true;
+          showToast('Starting the chat...');
+        });
+      });
+
+      // ---- Session ended / idle timeout banner ----
+      // Event names and payload shape were captured from the live MIAW client:
+      // onEmbeddedMessagingSessionStatusUpdate carries entryPayload.sessionStatus (Waiting/Active/Ended)
+      // and sessionEndedByRole; onEmbeddedMessagingConversationClosed follows when the session closes.
+      var resetting = false;
+      var banner = document.getElementById('sessionBanner');
+      var bannerTitle = document.getElementById('sessionBannerTitle');
+      var bannerText = document.getElementById('sessionBannerText');
+      var lastEndedBy = null;
+
+      function showBanner(title, text) {
+        bannerTitle.textContent = title;
+        bannerText.textContent = text;
+        banner.classList.add('show');
+      }
+      function hideBanner() { banner.classList.remove('show'); }
+
+      function readSessionPayload(evt) {
+        try {
+          var entry = evt.detail && evt.detail.conversationEntry;
+          return entry && entry.entryPayload ? JSON.parse(entry.entryPayload) : null;
+        } catch (e) { return null; }
+      }
+
+      window.addEventListener('onEmbeddedMessagingSessionStatusUpdate', function (evt) {
+        var p = readSessionPayload(evt);
+        if (!p) { return; }
+        if (p.sessionStatus === 'Inactive') {
+          showBanner('Are you still there?', 'Your chat has been idle for a while and will close soon. Send a message to keep it open.');
+        } else if (p.sessionStatus === 'Ended') {
+          lastEndedBy = p.sessionEndedByRole;
+        } else if (p.sessionStatus === 'Active') {
+          hideBanner();
+        }
+      });
+
+      window.addEventListener('onEmbeddedMessagingConversationClosed', function () {
+        // clearSession() also emits a close while it resets the client; that is not a customer-facing end.
+        if (resetting) { return; }
+        var text;
+        if (lastEndedBy === 'EndUser') {
+          text = 'You ended the chat. Need anything else? Start a new session any time.';
+        } else if (lastEndedBy === 'Agent' || lastEndedBy === 'Chatbot') {
+          text = 'Our team closed this conversation. Start a new session if you have more questions.';
+        } else {
+          text = 'Your session ended after 30 minutes of inactivity. Start a new session to continue.';
+        }
+        showBanner('Your chat session has ended', text);
+      });
+
+      window.addEventListener('onEmbeddedMessagingConversationStarted', hideBanner);
+
+      // ---- Hold the composer until the agent's welcome arrives ----
+      // The chat window lets customers type ~5 s before the agent's welcome message lands (measured live).
+      // The window is a cross-origin iframe, so its text box can't be disabled directly; instead the whole
+      // frame is made inert and a "Connecting" strip covers the composer. Timings captured from the live client:
+      // WindowMaximized 0 s, ConversationStarted 2.8 s, FirstBotMessageSent 5.2 s. A reopened conversation
+      // fires ConversationOpened without ConversationStarted and never re-sends the welcome.
+      var LOCK_TIMEOUT_MS = 20000;
+      var connecting = document.getElementById('chatConnecting');
+      var welcomed = false;
+      var startedSinceLock = false;
+      var lockTimer = null;
+      var followTimer = null;
+
+      function chatFrame() { return document.getElementById('embeddedMessagingFrame'); }
+
+      function holdLock() {
+        var f = chatFrame();
+        // inert stops clicks, but the chat client can still focus its own text box from inside the frame,
+        // so keyboard focus is pulled back to the page while the lock holds.
+        if (f && document.activeElement === f) { connecting.focus({ preventScroll: true }); }
+        var r = f ? f.getBoundingClientRect() : null;
+        if (!r || !r.height) { return; }
+        var h = Math.min(96, r.height);
+        connecting.style.left = r.left + 'px';
+        connecting.style.top = (r.bottom - h) + 'px';
+        connecting.style.width = r.width + 'px';
+        connecting.style.height = h + 'px';
+      }
+
+      function unlockComposer() {
+        clearTimeout(lockTimer);
+        clearInterval(followTimer);
+        var f = chatFrame();
+        if (f) { f.removeAttribute('inert'); }
+        connecting.classList.remove('show');
+      }
+
+      function lockComposer() {
+        var f = chatFrame();
+        if (welcomed || !f) { return; }
+        startedSinceLock = false;
+        f.setAttribute('inert', '');
+        connecting.classList.add('show');
+        holdLock();
+        // The frame animates open and moves on resize, so keep the strip aligned (and focus out) while it shows.
+        clearInterval(followTimer);
+        followTimer = setInterval(holdLock, 100);
+        clearTimeout(lockTimer);
+        lockTimer = setTimeout(unlockComposer, LOCK_TIMEOUT_MS);
+      }
+
+      window.addEventListener('onEmbeddedMessagingWindowMaximized', lockComposer);
+      window.addEventListener('onEmbeddedMessagingConversationStarted', function () {
+        welcomed = false;
+        startedSinceLock = true;
+      });
+      window.addEventListener('onEmbeddedMessagingConversationOpened', function () {
+        if (!startedSinceLock) { welcomed = true; unlockComposer(); }
+      });
+      window.addEventListener('onEmbeddedMessagingFirstBotMessageSent', function () {
+        welcomed = true;
+        unlockComposer();
+      });
+
+      document.getElementById('dismissSession').addEventListener('click', hideBanner);
+
+      // launchChat() alone only reopens the ended conversation (verified live). clearSession(true) resets the
+      // client (it re-fires Ready and ButtonCreated); launching after ButtonCreated starts a brand-new conversation.
+      document.getElementById('startNewSession').addEventListener('click', function () {
+        hideBanner();
+        resetting = true;
+        welcomed = false;
+        showToast('Starting a new session...');
+        var onButton = function () {
+          window.removeEventListener('onEmbeddedMessagingButtonCreated', onButton);
+          resetting = false;
+          launchChat();
+        };
+        window.addEventListener('onEmbeddedMessagingButtonCreated', onButton);
+        embeddedservice_bootstrap.userVerificationAPI.clearSession(true).catch(function (err) {
+          window.removeEventListener('onEmbeddedMessagingButtonCreated', onButton);
+          resetting = false;
+          console.error('clearSession failed', err);
+          showToast('Could not start a new session. Please refresh the page.');
+        });
+      });
+
+      // ---- Category navigation ----
+      var cards = document.querySelectorAll('#productGrid .card');
+      var filterLinks = document.querySelectorAll('[data-filter]');
+      var featuredTitle = document.getElementById('featuredTitle');
+      var titles = { all: 'Featured pieces', living: 'Living room', dining: 'Dining', lighting: 'Lighting' };
+
+      function applyFilter(category, scroll) {
+        if (!titles[category]) { category = 'all'; }
+        cards.forEach(function (card) {
+          card.hidden = !(category === 'all' || card.getAttribute('data-category') === category);
+        });
+        filterLinks.forEach(function (link) {
+          var on = link.getAttribute('data-filter') === category;
+          link.classList.toggle('active', on);
+          if (on) { link.setAttribute('aria-current', 'true'); } else { link.removeAttribute('aria-current'); }
+        });
+        featuredTitle.textContent = titles[category];
+        if (scroll) {
+          // Offset by the sticky header so the section title is not hidden under it.
+          var header = document.querySelector('header.site');
+          var top = featuredTitle.getBoundingClientRect().top + window.pageYOffset - (header ? header.offsetHeight : 0) - 16;
+          window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+      }
+
+      filterLinks.forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault();
+          var category = link.getAttribute('data-filter');
+          history.replaceState(null, '', '#' + category);
+          applyFilter(category, true);
+        });
+      });
+      document.querySelectorAll('a[href="#featured"]').forEach(function (link) {
+        link.addEventListener('click', function () { applyFilter('all', false); });
+      });
+
+      var initial = (location.hash || '').replace('#', '');
+      if (titles[initial]) { applyFilter(initial, true); }
+    })();
+  </script>
+
+  <!-- Salesforce Messaging for In-App and Web: Home_Advisor_Web_Chat deployment -->
+  <script type="text/javascript">
+    function initEmbeddedMessaging() {
+      try {
+        embeddedservice_bootstrap.settings.language = 'en_US';
+        embeddedservice_bootstrap.init(
+          '00Dbm000014gXnx',
+          'Home_Advisor_Web_Chat',
+          'https://orgfarm-50bae1527e-dev-ed.develop.my.site.com/ESWHomeAdvisorW1792246769235',
+          {
+            scrt2URL: 'https://orgfarm-50bae1527e-dev-ed.develop.my.salesforce-scrt.com'
+          }
+        );
+      } catch (err) {
+        console.error('Error loading Embedded Messaging: ', err);
+      }
+    }
+  </script>
+  <script type="text/javascript" src="https://orgfarm-50bae1527e-dev-ed.develop.my.site.com/ESWHomeAdvisorW1792246769235/assets/js/bootstrap.min.js" onload="initEmbeddedMessaging()"></script>
+</body>
+</html>
