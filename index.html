@@ -358,6 +358,15 @@
     </div>
   </div>
 
+  <div class="session-banner" id="chatSlowBanner" role="alert" aria-live="assertive">
+    <h4>Chat is taking longer than usual</h4>
+    <p>The chat service is slow to respond right now. Reload the page to try again.</p>
+    <div class="row">
+      <button class="btn primary" type="button" id="chatSlowReload">Reload page</button>
+      <button class="btn" type="button" id="chatSlowDismiss">Dismiss</button>
+    </div>
+  </div>
+
   <script>
     // Demo helpers: copy prompts, open the chat from page buttons, warn when opened from disk.
     (function () {
@@ -393,8 +402,23 @@
           showToast('Could not open the chat. Check the browser console.');
         });
       }
+      // The Developer Edition chat site sometimes stalls while loading (measured: script or chat frame hanging
+      // 40 s+, while a reload a moment later loads in ~2 s). Instead of "Starting the chat..." forever,
+      // offer a reload once the widget is clearly late.
+      var READY_TIMEOUT_MS = 15000;
+      var slowBanner = document.getElementById('chatSlowBanner');
+      var slowTimer = setTimeout(function () {
+        if (!chatReady) { slowBanner.classList.add('show'); }
+      }, READY_TIMEOUT_MS);
+      document.getElementById('chatSlowReload').addEventListener('click', function () { location.reload(); });
+      document.getElementById('chatSlowDismiss').addEventListener('click', function () {
+        slowBanner.classList.remove('show');
+      });
+
       window.addEventListener('onEmbeddedMessagingReady', function () {
         chatReady = true;
+        clearTimeout(slowTimer);
+        slowBanner.classList.remove('show');
         if (launchPending) {
           launchPending = false;
           launchChat();
@@ -513,6 +537,15 @@
         clearTimeout(lockTimer);
         lockTimer = setTimeout(unlockComposer, LOCK_TIMEOUT_MS);
       }
+
+      // Focus entering the frame blurs this window immediately; reclaim it right away instead of waiting
+      // for the next 100 ms holdLock tick, so no keystroke slips through in between.
+      window.addEventListener('blur', function () {
+        if (!connecting.classList.contains('show')) { return; }
+        setTimeout(function () {
+          if (document.activeElement === chatFrame()) { connecting.focus({ preventScroll: true }); }
+        }, 0);
+      });
 
       window.addEventListener('onEmbeddedMessagingWindowMaximized', lockComposer);
       window.addEventListener('onEmbeddedMessagingConversationStarted', function () {
